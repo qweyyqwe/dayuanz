@@ -1,0 +1,62 @@
+"""social_platform URL Configuration
+
+The `urlpatterns` list routes URLs to views. For more information please see:
+    https://docs.djangoproject.com/en/2.2/topics/http/urls/
+Examples:
+Function views
+    1. Add an import:  from my_app import views
+    2. Add a URL to urlpatterns:  path('', views.home, name='home')
+Class-based views
+    1. Add an import:  from other_app.views import Home
+    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
+Including another URLconf
+    1. Import the include() function: from django.urls import include, path
+    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+"""
+from django.contrib import admin
+from django.urls import path, include
+from child import child_url
+from plaza import plaza_url
+from f_circle import f_circle_url
+from integral_shopping import integral_shopping_url
+from sign_in import sign_in_url
+from site_letter import site_letter_url
+
+
+from rest_framework import permissions
+from drf_yasg2.views import get_schema_view
+from drf_yasg2 import openapi
+schema_view = get_schema_view(
+    openapi.Info(
+        title="Tweet API",
+        default_version='v1',
+        description="Welcome to the world of Tweet",
+        terms_of_service="https://www.tweet.org",
+        contact=openapi.Contact(email="demo@tweet.org"),
+        license=openapi.License(name="Awesome IP"),
+    ),
+    public=True,
+    permission_classes=(permissions.IsAdminUser,),)
+# schema_view = get_schema_view(
+#     openapi.Info(
+#         title="Python API",
+#         default_version='v1',
+#         description="Welcome to the world of Tweet",
+#     ),
+#     public=True,
+#     permission_classes=(permissions.AllowAny,),
+# )
+
+
+urlpatterns = [
+    path(r'^doc(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),  # <-- 这里
+    path('swagger/', schema_view.with_ui(cache_timeout=0), name='schema-swagger-ui'),  # <-- 这里
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),  # <-- 这里
+    path('admin/', admin.site.urls),
+    path('child/', include(child_url)),
+    path('plaza/', include(plaza_url)),
+    path('f_circle/', include(f_circle_url)),
+    path('shopping/', include(integral_shopping_url)),
+    path('sign_in/', include(sign_in_url)),
+    path('site_letter/', include(site_letter_url)),
+]
