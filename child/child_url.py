@@ -34,6 +34,8 @@ urlpatterns = [
     # path('show_user_friend/<int:user_id>/', views.ShowUserFriend.as_view()),
     # 展示用户对应下的好友
     path('show_user_friend/', views.ShowUserFriend.as_view()),
+    # 聊天信息
+    path('get_chat_record/', views.GetChatRecord.as_view()),
     # 修改好友
     path('put_friend_name/', views.PutFriendName.as_view()),
     path('invite/', views.Invite.as_view()),

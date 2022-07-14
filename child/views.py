@@ -30,11 +30,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_jwt.utils import jwt_encode_handler, jwt_payload_handler
 
+from utils.phone_charm.phone_charm import send_message
 from utils.redis_cache import mredis
 from utils.resource import get_resource_list, menu_left_list
 from utils.token.myjwt import jwt_token
-from .models import User, Friends, Resource, Blacklist
-from .serializers import UserSer, FriendsSer, ResourceSer, BlacklistSer
+from .models import User, Friends, Resource, Blacklist, ChatRecord
+from .serializers import UserSer, FriendsSer, ResourceSer, BlacklistSer, ChatRecordSer
 
 logger = logging.getLogger('log')
 
@@ -140,41 +141,41 @@ class LoginPhone(APIView):
             return Response({"msg": "验证码以过期", "code": "401"})
 
 
-# class SmsCode(APIView):
-#   """
-#   发送手机验证码
-#   """
-#   def post(self, request):
-#     mobile = request.data.get('phone')
-#     # 调用方法
-#     result = send_message(mobile)
-#     if result['statusCode'] == '172001':
-#       return Response({'msg': '网络错误', 'code': '400'})
-#     elif result['statusCode'] == '160038':
-#       return Response({'msg': '验证码过于频繁', 'code': '400'})
-#     else:
-#       return Response({'msg': '欧克', 'code': '200'})
-
-
 class SmsCode(APIView):
-    """
-    发送手机验证码
-    """
+  """
+  发送手机验证码
+  """
+  def post(self, request):
+    mobile = request.data.get('phone')
+    # 调用方法
+    result = send_message(mobile)
+    if result['statusCode'] == '172001':
+      return Response({'msg': '网络错误', 'code': '400'})
+    elif result['statusCode'] == '160038':
+      return Response({'msg': '验证码过于频繁', 'code': '400'})
+    else:
+      return Response({'msg': '欧克', 'code': '200'})
 
-    def post(self, request):
-        phone = request.data.get('phone')
-        img_code = request.data.get('img_code')
-        uuid = request.data.get('uuid')
-        phone_code = request.data.get('phone_code')
-        redis_cli = redis.Redis(db=2)
-        redis_img_code = redis_cli.get(uuid)
-        # 3.对比返回
-        logger.info('SmsCode—输入的img_code{}取出的redis_img_code{}'.format(img_code, redis_img_code))
-        if img_code.lower() != redis_img_code.decode().lower():
-            # 不一样，返回错误信息
-            return Response({'msg': '验证码错误', 'code': 400})
-        else:
-            return Response({'msg': 'ok'})
+
+# class SmsCode(APIView):
+#     """
+#     发送手机验证码
+#     """
+#
+#     def post(self, request):
+#         phone = request.data.get('phone')
+#         img_code = request.data.get('img_code')
+#         uuid = request.data.get('uuid')
+#         phone_code = request.data.get('phone_code')
+#         redis_cli = redis.Redis(db=2)
+#         redis_img_code = redis_cli.get(uuid)
+#         # 3.对比返回
+#         logger.info('SmsCode—输入的img_code{}取出的redis_img_code{}'.format(img_code, redis_img_code))
+#         if img_code.lower() != redis_img_code.decode().lower():
+#             # 不一样，返回错误信息
+#             return Response({'msg': '验证码错误', 'code': 400})
+#         else:
+#             return Response({'msg': 'ok'})
 
 
 class ImgCode(APIView):
@@ -413,11 +414,35 @@ class ShowUserFriend(APIView):
         user = request.user
         user_id = user.id
         friend = Friends.objects.filter(Q(user_id=user_id) & Q(status=0)).all()
-        friend_ser = FriendsSer(friend, many=True)
-        # print(friend_ser.data)
-        # print(friend.remark_name)
-        # return Response({'code': 200})
-        return Response({'code': 200, 'friend_ser': friend_ser.data})
+        friend_ser = FriendsSer(friend, many=True).data
+        return Response({'code': 200, 'friend_ser': friend_ser})
+
+
+class GetChatRecord(generics.GenericAPIView):
+    """
+    获取聊天记录
+    """
+
+    serializer_class = ChatRecordSer
+    permission_classes = [permissions.IsAuthenticated]
+
+    query_param = [openapi.Parameter(name='group_id', in_=openapi.IN_QUERY, description="聊天群组号", type=openapi.TYPE_STRING),
+                   openapi.Parameter(name='start_time', in_=openapi.IN_QUERY, description="开始时间", type=openapi.TYPE_STRING),
+                   openapi.Parameter(name='end_time', in_=openapi.IN_QUERY, description="结束时间", type=openapi.TYPE_STRING),
+                   ]
+
+    @swagger_auto_schema(method='get', manual_parameters=query_param)
+    @action(methods=['get'], detail=False)
+    def get(self, request):
+        user = request.user
+        data = request.query_params
+        group_id = data.get('group_id', '0')
+        start_time = data.get('start_time', '2021-07-11 16:15:07.050078')
+        end_time = data.get('end_time', '2022-07-13 16:15:07.050078')
+        data = ChatRecord.objects.filter(group_id=group_id, create_time__gte=start_time,
+                                         create_time__lte=end_time).order_by('-create_time')
+        data = self.get_serializer(data, many=True).data
+        return Response({'code': 200, 'data': data})
 
 
 class PutFriendName(APIView):
@@ -718,11 +743,9 @@ class BlackFriend(APIView):
     @action(methods=['post'], detail=False, )
     def post(self, request):
         friend_id = request.data.get('friend_id')
-        print(friend_id)
         friend = Friends.objects.get(id=friend_id)
         try:
             friend = Friends.objects.get(id=friend_id)
-            print(friend)
             if not friend:
                 return Response({'msg': '该用户还不是你的好友, 请添加', 'code': 500})
             if int(friend.status) == 1:

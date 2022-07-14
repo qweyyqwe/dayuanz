@@ -19,10 +19,10 @@ celery_app.autodiscover_tasks(['celery_task.tasks'])
 
 celery_app.conf.update(
     CELERYBEAT_SCHEDULE={
-        # 'time_task': {
-        #     'task': 'celery_task.tasks.time_task',
-        #     'schedule':  timedelta(seconds=3),
-        #     'args': ()
-        # },
+        'time_task': {
+            'task': 'celery_task.tasks.time_task',
+            'schedule':  timedelta(seconds=3),
+            'args': ()
+        },
     }
 )

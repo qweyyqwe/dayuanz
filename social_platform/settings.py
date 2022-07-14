@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 import datetime
 import os
-from pathlib import Path
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -31,7 +30,6 @@ DEBUG = True
 # TODO 聊天可——自己ip地址
 ALLOWED_HOSTS = ['*']
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -41,15 +39,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # 'django_celery_results',  # 定时任务结果
+    # 'django_celery_beat',  # 定时任务分发
     'rest_framework',
     'channels',
-    'drf_yasg2',    # api文档
-    'child',    # 用户相关
-    'plaza',    # 动态
+    'drf_yasg2',  # api文档
+    'child',  # 用户相关
+    'plaza',  # 动态
     'f_circle',  # 朋友圈
-    'integral_shopping',     # 积分商城
-    'sign_in',      # 积分
-    'site_letter',      # 战地信
+    'integral_shopping',  # 积分商城
+    'sign_in',  # 积分
+    'site_letter',  # 站内信
+    'bank',  # 银行借贷
 
 ]
 MIDDLEWARE = [
@@ -108,7 +109,6 @@ DATABASES = {
     }
 }
 
-
 # Password validation
 # https://docs.djangoproject.com/en/2.2/ref/settings/#auth-password-validators
 
@@ -126,7 +126,6 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.2/topics/i18n/
@@ -156,9 +155,9 @@ EMAIL_FROM = "yang_123456202204@163.com"
 # 配置图片验证码
 # 设置缓存。Django的缓存
 CACHES = {
-    "default": { # 默认存储信息: 存到 0 号库
+    "default": {    # 默认存储信息: 存到 0 号库
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/0", # 指定缓存到redis的第0库
+        "LOCATION": "redis://127.0.0.1:6379/0",     # 指定缓存到redis的第0库
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
@@ -183,7 +182,6 @@ CACHES = {
 # 改变django默认的缓存引擎
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "session"
-
 
 # 权限
 REST_FRAMEWORK = {
@@ -231,6 +229,28 @@ JWT_AUTH = {
     'JWT_ENCODE_HANDLER': 'rest_framework_jwt.utils.jwt_encode_handler',
     'JWT_DECODE_HANDLER': 'rest_framework_jwt.utils.jwt_decode_handler',
 }
+
+# 配置redis
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
+
+# CACHES = {
+#
+#     "default": {
+#         "BACKEND": "django_redis.cache.RedisCache",
+#         "LOCATION": "redis://47.111.69.97:6379/0",
+#         "OPTIONS": {
+#             "CLIENT_CLASS": "django_redis.client.DefaultClient"
+#         }
+#     }
+# }
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/

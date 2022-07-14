@@ -1,98 +1,49 @@
-from django.shortcuts import render
-
 # Create your views here.
-
-
-import traceback
+import itertools
 import logging
+import traceback
 
-from django.shortcuts import render
-
-# Create your views here.
-from django.db.models import Q
-from rest_framework import permissions
-from rest_framework.response import Response
-from rest_framework.decorators import action
-from rest_framework.views import APIView
-from rest_framework import generics, mixins, views
-from drf_yasg2.utils import swagger_auto_schema
 from drf_yasg2 import openapi
+from drf_yasg2.utils import swagger_auto_schema
+# Create your views here.
+from rest_framework import permissions
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .models import *
+from child.models import Friends
+from utils.utils import push
+from .models import SendMail, SendAddFriendMail, MailInfo
+from .serializers import SendMailSer
+
 # from .serializers import MailSer
 # from utils.site_letter_utils import set_mass_send_site_mail
 
 logger = logging.getLogger('log')
 
 
-class AddMail(APIView):
-    """站内消息"""
-    query_params = [permissions.IsAuthenticated]
-    request_body = openapi.Schema(type=openapi.TYPE_OBJECT,
-                                  required=['message_type_id', 'user_id'],
-                                  properties=
-                                  {'content': openapi.Schema(type=openapi.TYPE_STRING, description='站内信内容'),
-                                   'name': openapi.Schema(type=openapi.TYPE_STRING, description='站内信名称'),
-                                   'title': openapi.Schema(type=openapi.TYPE_STRING, description='站内信标题'),
-                                   'user_id': openapi.Schema(type=openapi.TYPE_STRING, description='收到人'),
-                                   }
-                                  )
-
-    @swagger_auto_schema(method='post', request_body=request_body, )
-    @action(methods=['post'], detail=False, )
-    def post(self, request):
-        try:
-            # 类别信息 id
-            data = request.data
-            # TODO 使用form表单
-            content = data.get('content')
-            name = data.get('name')
-            title = data.get('title')
-
-            # 0是每个都能收到 user_id 是独一无二
-            user_id = request.data.get('user_id')
-            if not all([content, user_id]):
-                return Response({"msg": '站内信息不全', 'code': 400})
-            # 添加消息内容
-            message_content = MessageType.objects.create(name=name, content=content, title=title)
-
-            # 群发
-            if int(user_id) == 0:
-                # 添加系统的群发消息
-                obj = SiteMail.objects.create(content_id=message_content.id, site_mail_type=0)
-                obj.save()
-            else:
-                add_mail = SiteMail.objects.create(content=message_content, user_id=user_id)
-                add_mail.save()
-            return Response({"msg": "站内信息添加成功", 'code': 200})
-        except:
-            error = traceback.format_exc()
-            logger.error(error)
-            return Response({'code': 500, 'error': error})
-
-
-class GetMail(APIView):
-    """
-        展示用户站内信  按时间排序
-    """
-    query_params = []
-
-    @swagger_auto_schema(method='get', manual_parameters=query_params)
-    @action(methods=['get'], detail=False)
-    def get(self, request):
-        try:
-            user = request.user
-            # 读取并保存群发的站内信
-            set_mass_send_site_mail(user)
-            # 获取用户的站内信
-            mail_total = SiteMail.objects.filter(user=user)
-            # TODO 分页
-            ser = MailSer(mail_total, many=True).data
-            return Response({'msg': '展示成功', 'code': 200, 'data': ser})
-        except:
-            error = traceback.format_exc()
-            logger.error(error)
-            return Response({'code': 500, 'error': error})
+# class GetMail(APIView):
+#     """
+#         展示用户站内信  按时间排序
+#     """
+#     query_params = []
+#
+#     @swagger_auto_schema(method='get', manual_parameters=query_params)
+#     @action(methods=['get'], detail=False)
+#     def get(self, request):
+#         try:
+#             user = request.user
+#             # 读取并保存群发的站内信
+#             set_mass_send_site_mail(user)
+#             # 获取用户的站内信
+#             mail_total = SiteMail.objects.filter(user=user)
+#             # TODO 分页
+#             ser = MailSer(mail_total, many=True).data
+#             return Response({'msg': '展示', 'code': 200, 'data': ser})
+#         except:
+#             error = traceback.format_exc()
+#             logger.error(error)
+#             return Response({'code': 500, 'error': error})
 
 
 # 注意只有管理员可以添加
@@ -132,7 +83,6 @@ class GetMail(APIView):
 #             return Response({'code': 500, 'error': error})
 
 
-
 # class LookMessageType(APIView):
 #     """获取信息类别"""
 #     query_param = []
@@ -143,7 +93,6 @@ class GetMail(APIView):
 #         message_type = MessageType.objects.all()
 #         ser = MessageTypeSer(message_type, many=True).data
 #         return Response({'msg': "查看类别成功", 'data': ser, 'code': 200})
-
 
 
 # class DeleteMessageType(APIView):
@@ -170,7 +119,6 @@ class GetMail(APIView):
 #             error = traceback.format_exc()
 #             logger.error(error)
 #             return Response({'code': 500, 'error': error})
-
 
 
 # 默认管理员发送
@@ -208,28 +156,6 @@ class GetMail(APIView):
 #             add_mail = Mail.objects.create(message_type_id=message_type_id, user_id=user_id)
 #             add_mail.save()
 #             return Response({"msg": "站内信息添加成功", 'code': 200})
-#         except:
-#             error = traceback.format_exc()
-#             logger.error(error)
-#             return Response({'code': 500, 'error': error})
-
-
-
-# class GetMail(APIView):
-#     """展示用户下的未读&已读按照时间"""
-#     query_params = [openapi.Parameter(name='user_id', in_=openapi.IN_QUERY, description="user_id", type=openapi.TYPE_STRING),
-#                    ]
-#
-#     @swagger_auto_schema(method='get', manual_parameters=query_params)
-#     @action(methods=['get'], detail=False)
-#     def get(self, request):
-#         try:
-#             user_id = request.query_params.get('user_id')
-#             mail1 = Mail.objects.filter(user_id=user_id, status=0).order_by('-create_time').all()
-#             mail2 = Mail.objects.filter(user_id=user_id, status=1).order_by('-create_time').all()
-#             mail_total = itertools.chain(mail1, mail2)
-#             ser = MailSer(mail_total, many=True).data
-#             return Response({'msg': '展示成功', 'code': 200, 'data': ser})
 #         except:
 #             error = traceback.format_exc()
 #             logger.error(error)
@@ -307,7 +233,7 @@ class GetAddFriendMail(APIView):
             # 读取并保存群发的站内信
             # 获取用户的站内信
             user_messages = SendAddFriendMail.objects.filter(user=user_id).order_by('-send_time')
-            data = SendAddFriendMailSerializer(user_messages, many=True).data
+            data = SendAddFriendMailSer(user_messages, many=True).data
             return Response({'msg': '展示成功', 'code': 200, 'data': data})
         except:
             error = traceback.format_exc()
@@ -331,7 +257,7 @@ class GetOneAddFriendMail(APIView):
             user_messages = SendAddFriendMail.objects.filter(user=user_id, id=mail_id).first()
             user_messages.status = 1
             user_messages.save()
-            data = SendAddFriendMailSerializer(user_messages).data
+            data = SendAddFriendMailSer(user_messages).data
             return Response({'msg': '展示成功', 'code': 200, 'data': data})
         except:
             error = traceback.format_exc()
@@ -383,15 +309,14 @@ class AddFirendSite(APIView):
             if start == 0:
                 # 同意
                 friend_id = SendAddFriendMail.objects.get(id=site_mail_id).friend_id
-                print('>>>>>>>>>>>>>>>friend_id', friend_id)
-                user_ = UserInfo.objects.filter(user_id=user_id, friend_id=friend_id)
-                users_ = UserInfo.objects.filter(user_id=friend_id, friend_id=user_id)
+                user_ = Friends.objects.filter(user_id=user_id, friend_id=friend_id)
+                users_ = Friends.objects.filter(user_id=friend_id, friend_id=user_id)
                 if not user_ and users_:
-                    user_info = UserInfo.objects.create(user_id=user_id, friend_id=friend_id, site_mail_id=site_mail_id,
+                    user_info = Friends.objects.create(user_id=user_id, friend_id=friend_id, site_mail=site_mail_id,
+                                                       handle_status=0)
+                    user_infos = Friends.objects.create(user_id=friend_id, friend_id=user_id,
+                                                        site_mail=site_mail_id,
                                                         handle_status=0)
-                    user_infos = UserInfo.objects.create(user_id=friend_id, friend_id=user_id,
-                                                         site_mail_id=site_mail_id,
-                                                         handle_status=0)
                     user_info.save()
                     user_infos.save()
                     return Response({'code': 200, 'msg': '添加好友成功'})
@@ -413,7 +338,116 @@ class AddFirendSite(APIView):
             return Response({'code': 500, 'msg': error})
 
 
+# 默认管理员发送
+from child.models import User
 
 
+class AddMail(APIView):
+    """站内消息"""
+    request_body = openapi.Schema(type=openapi.TYPE_OBJECT,
+                                  required=['site_mail_type', 'content', 'title'],
+                                  properties=
+                                  {
+
+                                      'site_mail_type': openapi.Schema(type=openapi.TYPE_STRING, description='信息人群0群发'
+                                                                                                             'else指定用户'),
+                                      'content': openapi.Schema(type=openapi.TYPE_STRING, description='内容'),
+                                      'title': openapi.Schema(type=openapi.TYPE_STRING, description='标题'),
+                                  }
+                                  )
+
+    @swagger_auto_schema(method='post', request_body=request_body, )
+    @action(methods=['post'], detail=False, )
+    def post(self, request):
+        try:
+
+            data = request.data
+            user = request.user
+            user_id = user.id
+            # 0是每个都能收到 user_id 是独一无二
+            site_mail_type = data.get('site_mail_type')
+            content = data.get('content')
+            title = data.get('title')
+            user = User.objects.filter(id=site_mail_type).first()
+            # 群发
+            if int(site_mail_type) == 0:
+                user = User.objects.filter()
+                for i in user:
+                    add_mail = SendMail.objects.get_or_create(user=i.id, content=content, title=title,
+                                                              site_mail_type=site_mail_type)
+                    return Response({"msg": "全体站内信息添加成功", 'code': 200})
+            elif not user:
+                return Response({'msg': '找不到对应用户', 'code': 406})
+
+            add_mail = SendMail.objects.create(user=user_id, content=content, title=title,
+                                                      site_mail_type=site_mail_type)
+            push(site_mail_type, SendMailSer(add_mail).data)
+            return Response({"msg": "站内信息添加成功", 'code': 200})
+        except:
+            error = traceback.format_exc()
+            logger.error('AddMail——error:{}'.format(error))
+            return Response({'code': 500, 'error': error})
+
+
+class GetMail(APIView):
+    """展示用户下的未读&已读按照时间"""
+    query_params = []
+
+    @swagger_auto_schema(method='get', manual_parameters=query_params)
+    @action(methods=['get'], detail=False)
+    def get(self, request):
+        try:
+            # user = request.user
+            # user_id = user.id
+            # mail1 = SendMail.objects.filter(user=user_id).order_by('-send_time').all()
+            # mail2 = SendMail.objects.filter(user=user_id).order_by('-send_time').all()
+            # mail_total = itertools.chain(mail1, mail2)
+            email = SendMail.objects.order_by('-send_time').all()
+            ser = SendMailSer(email, many=True).data
+            return Response({'msg': '展示成功', 'code': 200, 'data': ser})
+
+        except:
+            error = traceback.format_exc()
+            logger.error(error)
+            return Response({'code': 500, 'error': error})
+
+
+class GetChatRecord(APIView):
+    """
+    聊天记录
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    query_params = []
+
+    @swagger_auto_schema(method='get', manual_parameters=query_params)
+    @action(methods=['get'], detail=False)
+    def get(self, request):
+        pass
+
+
+# class GetChatRecord(generics.GenericAPIView):
+#     """
+#     获取聊天记录
+#     """
+#
+#     serializer_class = FriendListSerializer
+#     permission_classes = [permissions.IsAuthenticated]
+#
+#     query_param = [
+#
+#     ]
+#
+#     @swagger_auto_schema(method='get', manual_parameters=query_param)
+#     @action(methods=['get'], detail=False)
+#     def get(self, request):
+#         user = request.user
+#         data = request.query_params
+#         group_id = data.get('group_id')
+#         start_time = data.get('start_time')
+#         end_time = data.get('end_time')
+#         data = ChatRecord.objects.filter(group_id=group_id, create_time__gte=start_time,
+#                                          create_time_lte=end_time)
+#         data = self.get_serializer(data, many=True).data
+#         return Response({'code': 200, 'data': data})
 
 

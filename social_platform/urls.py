@@ -21,6 +21,7 @@ from f_circle import f_circle_url
 from integral_shopping import integral_shopping_url
 from sign_in import sign_in_url
 from site_letter import site_letter_url
+from bank import bank_url
 
 
 from rest_framework import permissions
@@ -59,4 +60,5 @@ urlpatterns = [
     path('shopping/', include(integral_shopping_url)),
     path('sign_in/', include(sign_in_url)),
     path('site_letter/', include(site_letter_url)),
+    path('bank/', include(bank_url)),
 ]

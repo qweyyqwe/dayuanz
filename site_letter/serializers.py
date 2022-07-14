@@ -5,18 +5,7 @@
 #
 from rest_framework import serializers
 from rest_framework.serializers import SerializerMethodField
-from .models import MailInfo, SendMail, SendAddFriendMail
-
-
-class SendMailSer(serializers.ModelSerializer):
-    """
-    发送站内信息序列化
-    """
-    send_time = serializers.DateTimeField(format='%Y-%m-%d %H:%M:%S')
-
-    class Meta:
-        model = SendMail
-        fields = "__all__"
+from .models import SendMail, SendAddFriendMail
 
 
 class SendAddFriendMailSer(serializers.ModelSerializer):
@@ -30,24 +19,8 @@ class SendAddFriendMailSer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-# class MessageTypeSer(serializers.ModelSerializer):
-#     class Meta:
-#         model = MessageType
-#         fields = '__all__'
-#
-#
-# class MailSer(serializers.ModelSerializer):
-#     message_type_name = serializers.SerializerMethodField()
-#     message_type_content = serializers.SerializerMethodField()
-#     # create_time = serializers.DateTimeField(format='%Y-%m-%d %H:%M:%S')
-#
-#     def get_message_type_name(self, obj):
-#         return obj.content.name
-#
-#     def get_message_type_content(self, obj):
-#         return obj.content.content
-#
-#     class Meta:
-#         model = SiteMail
-#         fields = "__all__"
+class SendMailSer(serializers.ModelSerializer):
+    class Meta:
+        model = SendMail
+        fields = "__all__"
 

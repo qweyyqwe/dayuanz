@@ -3,7 +3,7 @@
 # @File    : serializers.py
 # @Software: PyCharm
 
-from .models import User, Friends, Resource, Blacklist
+from .models import User, Friends, Resource, Blacklist, ChatRecord
 from rest_framework import serializers
 from django.forms import model_to_dict
 
@@ -73,10 +73,24 @@ class RoleInfoSerializer(serializers.ModelSerializer):
         return resource_list
 
 
-class BlacklistSer(serializers.ModelSerializer):
+class ChatRecordSer(serializers.ModelSerializer):
     """
-    黑名单序列化器
+    用户组序列化器
     """
+    id = serializers.SerializerMethodField()
+    message = serializers.SerializerMethodField()
+
     class Meta:
-        model = Blacklist
-        fields = "__all__"
+        """
+        序列化模型
+        """
+        model = ChatRecord
+        fields = ['message', 'id']
+
+    def get_id(self, obj):
+        return obj.id
+
+    def get_message(self, obj):
+        text = demjson.decode(obj.content)['text']
+        message = demjson.decode(text)
+        return message

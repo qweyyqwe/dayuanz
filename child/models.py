@@ -85,6 +85,7 @@ class Friends(models.Model):
     status = models.IntegerField(null=True, blank=True, default=0, verbose_name="0好友1黑名单")
     remark_name = models.CharField(max_length=20, verbose_name="朋友备注", null=True, blank=True)
     site_mail = models.ForeignKey("site_letter.SendAddFriendMail", on_delete=models.CASCADE, verbose_name='站内信id', null=True, blank=True)
+    # site_mail = models.IntegerField(verbose_name='站内信id', null=True, blank=True)
     handle_status = models.IntegerField(verbose_name='是否添加为好友(0:同意,1:忽略,2:拒绝)', default=-1)
 
     class Meta:
@@ -101,4 +102,16 @@ class Blacklist(models.Model):
         db_table = "child_blacklist"
 
 
+class ChatRecord(models.Model):
+    """
+    聊天记录
+    只记录1v1聊天
+    """
+    user_id = models.IntegerField(blank=True, null=True)
+    friend_id = models.IntegerField(blank=True, null=True)
+    content = models.TextField()
+    create_time = models.DateTimeField(default=timezone.now)
+    group_id = models.CharField(max_length=100, default='')
 
+    class Meta:
+            db_table = 'chat_record'

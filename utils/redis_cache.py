@@ -9,7 +9,8 @@ import redis
 
 class Mredis:
     def __init__(self) -> None:
-        self.pool = redis.ConnectionPool(host='127.0.0.1', port=6379, db=2)
+        # self.pool = redis.ConnectionPool(host='127.0.0.1', port=6379, db=2)
+        self.pool = redis.ConnectionPool(host='47.111.69.97', port=6379, db=2)
         self.conn = redis.Redis(connection_pool=self.pool)
         # self.cursor = self.conn.cursor()
 
@@ -48,8 +49,6 @@ class Mredis:
     # 获取单个
     def hash_one(self, gkey, key):
         return self.conn.hget(gkey, key)
-
-
 
 
 mredis = Mredis()

@@ -70,10 +70,10 @@ class SendMail(models.Model):
     user = models.IntegerField(verbose_name='0代表全部人，user_id普通用户')
     content = models.CharField(max_length=256, verbose_name='信息内容')
     title = models.CharField(max_length=20, verbose_name='信息标题')
-
-    content_id = models.IntegerField(verbose_name='消息内容，MailInfo中保存')
+    # content_id = models.IntegerField(verbose_name='消息内容，MailInfo中保存')
     site_mail_type = models.IntegerField(verbose_name='站内信消息类型（0全体/用户id）')
     send_time = models.DateTimeField(default=timezone.now, verbose_name='发布时间')
+    # status = models.IntegerField(verbose_name="0已读1未读", default=1)
 
     class Meta:
         verbose_name_plural = '发送站内信息'
@@ -82,7 +82,7 @@ class SendMail(models.Model):
 
 class MailInfo(models.Model):
     """
-    站内信息内容
+    站内状态
     """
     # 0未读 1 已读
     user = models.IntegerField(verbose_name='用户id')
@@ -90,7 +90,7 @@ class MailInfo(models.Model):
     send_mail = models.ForeignKey(SendMail, on_delete=models.CASCADE, verbose_name='站内信消息id')
 
     class Meta:
-        verbose_name_plural = '站内信息内容'
+        verbose_name_plural = '站内状态'
         db_table = 'site_letter_mailinfo'
 
 

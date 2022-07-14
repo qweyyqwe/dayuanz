@@ -39,7 +39,6 @@ logger = logging.getLogger('log')
 #             user_id = user.id
 #             # 获取登录的用户是否签到过（未时间一起检测）
 #             user_sign_in = DailySignIn.objects.filter(user_id=user_id).count()
-#             print('user_sign_in>>>>>>', user_sign_in)
 #             # 没签到  则签到
 #             if int(user_sign_in) == 0:
 #                 user_sign = DailySignIn.objects.create(count=1, target_count=1, user_id=user_id)
@@ -77,7 +76,6 @@ logger = logging.getLogger('log')
 #                 # return Response({'code': 200, 'msg': '签到成功', 'start_time': start_time})
 #                 return Response({'code': 200, 'msg': '签到{}添加了{}积分'.format(count, integral), 'start_time': start_time})
 #             # else:
-#             #     print('111111111111111111')
 #             #     sign_in_time = DailySignIn.objects.get(user_id=user_id).create_time.replace(tzinfo=None)
 #             #     now_time = timezone.now().replace(tzinfo=None)
 #             #     times = (now_time - sign_in_time).seconds
@@ -88,7 +86,6 @@ logger = logging.getLogger('log')
 #             #     # 上次签到的时候超过十二点多少秒
 #             #     unit_times = sign_in_time_hour * 3600 + sign_in_time_minute * 60 + sign_in_time_second
 #             #     start_time = day_time - unit_times
-#             #     print('>>>>>>>>>>>>>>>>>time_time', start_time)
 #             #     if times > start_time:
 #             #         target_count = DailySignIn.objects.get(user_id=user_id).target_count
 #             #         content = DailySignIn.objects.get(user_id=user_id).content
@@ -209,13 +206,9 @@ class SignServer(APIView):
         try:
             user = request.user
             user_id = user.id
-            print(user_id)
             user_sign = DailySignIn.objects.filter(user=user)
             user_sign2 = DailySignIn.objects.get(user=user)
             user_sign3 = User.objects.get(id=user_id)
-            print(user_sign2.continuous_day)
-            print(user_sign3.integral)
-            print('————————————————')
             if not user_sign:
                 sign = DailySignIn.objects.create(continuous_day=1, user=user, sign_in_time=timezone.now())
                 return Response({'code': '200', 'msg': '签到成功'})
@@ -233,12 +226,9 @@ class SignServer(APIView):
                     # 下一次签到
                     integral = User.objects.get(id=user_id).integral  # 积分
                     count = DailySignIn.objects.filter(user=user).count()  # 天数
-                    print('count>>>>>>>>>>>>>>>>>', count)
                     integral += 1
                     count += 1
                     DailySignIn.objects.update(continuous_day=count, user=user, sign_in_time=timezone.now())
-                    print('修改后的>>>>>>>>>>>>>>>>>>>>', user_sign2.continuous_day)
-                    print('修改后的>>>>>>>>>>>>>>>>>>>>', user.integral)
                     User.objects.filter(id=user_id).update(integral=integral)
                     # 连续7天签到
                     if count == 7:

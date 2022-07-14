@@ -77,8 +77,6 @@
 #     print(now)
 
 
-
-
 # # 冒泡排序核心代码，
 # list1 = [3, 1, 92, 43, 2, 71, 32, 12]
 # for j in range(len(list1) - 1):
@@ -94,31 +92,38 @@
 # print(list1)
 
 
-def bubble_sort(blist):
-    count = len(blist)
-    for i in range(0, count):
-        for j in range(i + 1, count):
-            if blist[i] > blist[j]:
-                blist[i], blist[j] = blist[j], blist[i]
-    return blist
+# def bubble_sort(blist):
+#     count = len(blist)
+#     for i in range(0, count):
+#         for j in range(i + 1, count):
+#             if blist[i] > blist[j]:
+#                 blist[i], blist[j] = blist[j], blist[i]
+#     return blist
+#
+# blist = bubble_sort([3, 1, 92, 43, 2, 71, 32, 12])
+# print(blist)
 
-blist = bubble_sort([3, 1, 92, 43, 2, 71, 32, 12])
-print(blist)
+
+# # 选择
+# def selectionSort(arr):
+#     for i in range(len(arr) - 1):
+#         # 记录最小数的索引
+#         minIndex = i
+#         for j in range(i + 1, len(arr)):
+#             if arr[j] < arr[minIndex]:
+#                 minIndex = j
+#         # i 不是最小数时，将 i 和最小数进行交换
+#         if i != minIndex:
+#             arr[i], arr[minIndex] = arr[minIndex], arr[i]
+#     return arr
+#
+# xuanze = selectionSort([3, 1, 92, 43, 2, 71, 32, 12])
+# print(xuanze)
 
 
-# 选择
-def selectionSort(arr):
-    for i in range(len(arr) - 1):
-        # 记录最小数的索引
-        minIndex = i
-        for j in range(i + 1, len(arr)):
-            if arr[j] < arr[minIndex]:
-                minIndex = j
-        # i 不是最小数时，将 i 和最小数进行交换
-        if i != minIndex:
-            arr[i], arr[minIndex] = arr[minIndex], arr[i]
-    return arr
-
-xuanze = selectionSort([3, 1, 92, 43, 2, 71, 32, 12])
-print(xuanze)
+# # {"code":200,"data":[{"id":33,"name":"12312","card_id":"123123123123456","bank_card_id":"1231231231","password":"231233","phone":"15555555555","user":10}]}
+# data = [{"id": 33, "name": "12312", "card_id": "123123123123456", "bank_card_id": "1231231231", "password": "231233",
+#          "phone": "15555555555", "user": 10}]
+# lis = [i['name'] for i in data]
+# print(lis)
 

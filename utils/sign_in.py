@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-# @Time    : 2021/11/22 
-# @File    : sign_in.py
-# @Software: PyCharm
 # 封装签到的方法
 
 
