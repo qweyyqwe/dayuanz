@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from child.models import Friends
-from utils.utils import push
+from utils.message.utils import push
 from .models import SendMail, SendAddFriendMail, MailInfo
 from .serializers import SendMailSer
 

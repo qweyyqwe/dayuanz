@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from utils.pinstance import PinstanceList
-from utils.qiniu_img import get_qiniu_token
+from utils.images.qiniu_img import get_qiniu_token
 from utils.redis_cache import mredis
 from utils.custom_permissions import IsCheckUser
 from .models import WeChatMoments, WeChatPicture, WeChatComment

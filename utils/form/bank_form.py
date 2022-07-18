@@ -19,3 +19,15 @@ class BankUserForm(forms.Form):
     phone = forms.CharField(max_length=11, min_length=11)
     bank_card_id = forms.CharField(max_length=20)
     password = forms.CharField(max_length=6, min_length=6)
+
+
+class RefundMoneyForm(forms.Form):
+    """
+    还款表单验证
+    """
+    # phone = forms.CharField(max_length=11, min_length=11)
+    # code = forms.CharField(max_length=50)
+    bank_card_id = forms.CharField(max_length=100)
+    bank_password = forms.CharField(max_length=6, min_length=6)
+
+

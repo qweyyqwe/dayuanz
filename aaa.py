@@ -127,3 +127,14 @@
 # lis = [i['name'] for i in data]
 # print(lis)
 
+import re
+
+p = re.compile('blue|white|red')
+
+print(type(p.subn(' colour', 'blue socks and red shoes')))
+
+# colour socks and colourshoes
+
+print(p.subn('colour', 'blue socks and red shoes', count=1))
+
+# colour socks and redshoes

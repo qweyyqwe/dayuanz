@@ -64,7 +64,6 @@ class ChatConsumer(WebsocketConsumer):
     #     self.chat_user_id = 'chat_%s' % self.user_id
     #     print('userid>>>>>>>>>>', self.chat_user_id)
     #     async_to_sync(self.channel_layer.group_add)(self.chat_user_id, self.channel_name)
-    #     print('66666666666')
     #     self.accept()
     #
     # def websocket_receive(self, message):

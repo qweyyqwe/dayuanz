@@ -21,6 +21,7 @@ class BankUser(models.Model):
     password = models.CharField(max_length=6, verbose_name='用户银行卡密码')
     phone = models.CharField(max_length=11, verbose_name='手机号')
     create_time = models.DateTimeField(default=timezone.now, verbose_name='开户时间')
+    money = models.IntegerField(default=0, verbose_name="余额")
 
     class Meta:
         db_table = 'bank_bankuser'
@@ -30,7 +31,13 @@ class BankUser(models.Model):
 #     """
 #     投资表
 #     """
-#     pass
+#     user = models.ForeignKey(BankUser, on_delete=models.CASCADE, verbose_name='关联开户人员')
+#     loan = models.ForeignKey('LoanRecord', on_delete=models.CASCADE, verbose_name='贷款理财')
+#     create_time = models.DateTimeField(default=timezone.now, verbose_name='开户时间')
+#     earnings_money = models.IntegerField(verbose_name="预收益", null=True, blank=True)
+#
+#     class Meta:
+#         db_table = 'bank_investrecord'
 
 
 class LoanRecord(models.Model):
@@ -49,7 +56,26 @@ class LoanRecord(models.Model):
     count = models.IntegerField(verbose_name="贷款次数", default=0)
     code = models.CharField(max_length=30, verbose_name="唯一标识", default='')
     check_user_id = models.IntegerField(verbose_name="审核人id", null=True, blank=True)
+    loan_status = models.IntegerField(verbose_name="状态(0未审核/ 1筹备中/   2满标/)", default=0)
 
     class Meta:
         db_table = 'bank_loanrecord'
+
+
+class TopUpRecord(models.Model):
+    """
+    充值记录表
+    """
+    user = models.ForeignKey(BankUser, on_delete=models.CASCADE, verbose_name='充值人员')
+    money = models.IntegerField(verbose_name="充值金额", null=True, blank=True)
+    code = models.CharField(max_length=30, verbose_name="生成唯一code", default='')
+    serial_number = models.CharField(max_length=50, verbose_name="订单流水号", default='')
+    create_time = models.DateTimeField(default=timezone.now, verbose_name="充值时间")
+    status = models.IntegerField(verbose_name="状态(0成功/ 1网络错误/   2取消/)", null=True, blank=True)
+
+    class Meta:
+        db_table = 'bank_topuprecord'
+
+
+
 

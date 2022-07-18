@@ -48,7 +48,7 @@ class AliPay(object):
         data = self.build_body("alipay.trade.page.pay", biz_content, self.return_url)
         return self.sign_data(data)
 
-    def query_pay(self, out_trade_no,trade_no,return_url=None, **kwargs):
+    def query_pay(self, out_trade_no, trade_no, return_url=None, **kwargs):
         biz_content = {
             "out_trade_no": out_trade_no,
             "trade_no": trade_no,
@@ -65,11 +65,12 @@ class AliPay(object):
             "app_id": self.appid,
             "method": method,
             "charset": "utf-8",
-            "sign_type": "RSA2",
+            "sign_type": "RSA2",    # RSA 或者 RSA2
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "version": "1.0",
             "biz_content": biz_content
         }
+        print('data>>>>>>>', data)
 
         if return_url is not None:
             data["notify_url"] = self.app_notify_url

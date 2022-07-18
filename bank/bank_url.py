@@ -22,6 +22,24 @@ urlpatterns = [
     path('get_not_bank_money/', views.GetNotLoanMoney.as_view()),
     # 审核人获取自己需审核的数据
     path('all_loan_money_record/', views.GetAllLoanMoney.as_view()),
+    path('succeed/', views.CheckSucceed.as_view()),
+    # 充值调用 支付宝
+    path('get_money/', views.GetMoney.as_view()),
+    # 充值回调
+    path('callback/', views.GoMoney.as_view()),
+
+    path('get_sign_all/', views.ShowSignAll.as_view()),
+    # 新标  投资
+    path('invest_money/', views.InvestMoney.as_view()),
+    # 投标回调
+    path('callback/', views.InvestCallBack.as_view()),
+    # 获取还款列表
+    path('get_user_loan/', views.GetUserLoan.as_view()),
+    # 还款
+    path('refund_money/', views.RefundMoney.as_view()),
+    path('send_refund_code/', views.SendRefundCode.as_view()),
+
+
 
 
 ]
