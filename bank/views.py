@@ -5,6 +5,7 @@ import logging
 import random
 import time
 import traceback
+import json
 
 from django.db import transaction
 from django.db.models import Q
@@ -19,6 +20,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
 
+from MQPika.teacher_rabbit_product import PublishClass
 from utils.alp.alipay import get_ali_object, pay
 from utils.custom_permissions import IsCheckUser
 from utils.form.bank_form import BankUserForm, RefundMoneyForm
@@ -26,9 +28,9 @@ from utils.phone_charm.phone_charm import send_message
 from utils.phone_charm.send_code import send_son
 from utils.pinstance import PinstanceList
 from utils.redis_cache import mredis
-from .models import BankUser, LoanRecord, TopUpRecord
+from .models import BankUser, LoanRecord, TopUpRecord, InvestRecord
 from .serializers import BankUserSer, LoanRecordSer
-from utils.alp.code import uniqueness_code
+from MQPika.teacher_rabbit_product import PublishClass
 
 logger = logging.getLogger('log')
 
@@ -509,6 +511,7 @@ class InvestMoney(APIView):
     新标  投资
     """
     permission_classes = [permissions.IsAuthenticated]
+
     def post(self, request):
         user = request.user
         user_id = user.id
@@ -516,55 +519,58 @@ class InvestMoney(APIView):
             # 要投的新标
             invest_id = request.data.get('invest_id')
             loan_money = request.data.get('loan_money')
+            bank_card_id = request.data.get('bank_card_id')
+            password = request.data.get('password')
             loan = LoanRecord.objects.get(id=invest_id)
-            # 新标投资总额度
-            residue_money = loan.loan_money
-            if int(loan_money) > int(residue_money):
-                return Response({'msg': '当前投资金额大于新标总额', 'code': 406})
-            elif int(loan_money) < 0:
-                return Response({'msg': '数据不合法', 'code': 406})
-            else:
-                # 获取当前用户可投金额
-                user = BankUser.objects.get(user_id=user_id)
-                balance = user.money
-                if int(balance) > int(loan_money):
-                    # 可投金额
-                    # pay_money = pay(loan_money, invest_id)
-                    # TODO 对字段进行操作
-                    code = uniqueness_code(id)
-                    alipay = get_ali_object()
-                    query_params = alipay.direct_pay(
-                        subject="投资",  # 商品简单描述
-                        out_trade_no=code,  # 用户购买的商品订单号(每次都不一样)
-                        total_amount=int(loan_money)  # 交易金额
-                    )
-                    pay_url = "https://openapi.alipaydev.com/gateway.do?{0}".format(query_params)
-                    return Response({"code": 200, "message": "ok", "url": pay_url})
+            bank_user = BankUser.objects.get(user_id=user_id)
+            if bank_user.bank_card_id == bank_card_id:
+                if bank_user.password == password:
+                    # 新标投资总额度
+                    residue_money = loan.loan_money
+                    if int(loan_money) > int(residue_money):
+                        return Response({'msg': '当前投资金额大于新标总额', 'code': 406})
+                    elif int(loan_money) <= 0:
+                        return Response({'msg': '数据不合法', 'code': 406})
+
+                    else:
+                        # 获取当前用户可投金额
+                        user = BankUser.objects.get(user_id=user_id)
+                        balance = user.money
+                        # 余额大于要投的金额成立
+                        if int(balance) > int(loan_money):
+                            user.money = int(balance) - int(loan_money)
+                            user.save()
+                            loan.have_money += int(loan_money)
+                            if loan.loan_money < loan.have_money:
+                                return Response({'msg': '数据不合法', 'code': 200})
+                            # 投资金额  和  已投金额 相等  状态为满标
+                            if loan.loan_money == loan.have_money:
+                                loan.loan_status = 2
+                                loan.save()
+                                return Response({'msg': '满标', 'code': 200})
+
+                            invest_record = InvestRecord.objects.create(user_id=user_id, loan_id=invest_id,
+                                                                        invest_money=loan_money, status=0)
+                            # invest_record.save()
+                            producer = PublishClass(user='admin', password='admin', ip='47.111.69.97', port=5672)
+                            data = {
+                                'loan_id': invest_id,
+                                'invest_id': invest_record.id
+                            }
+                            producer.this_publisher(json.dumps(data))
+                            bank_user.save()
+                            loan.save()
+                            return Response({'msg': '投资成功', 'code': 200})
+                        else:
+                            return Response({'msg': '余额不足，无法投标', 'code': 500})
                 else:
-                    return Response({'msg': '余额不足，无法投标', 'code': 500})
+                    return Response({'msg': '银行卡密码错误', 'code': 406})
+            else:
+                return Response({'msg': '账号与用户不匹配', 'code': 406})
         except:
             error = traceback.format_exc()
             logger.error('InvestMoney——error:{}'.format(error))
             return Response({'msg': error, 'code': 406})
-
-
-class InvestCallBack(APIView):
-    """
-    投标 回调
-    """
-    def get(self, request):
-        try:
-            trade_no = request.query_params.get("trade_no")
-            code_key = "invest_code" + str(id)
-            mredis.str_get(code_key)
-            # money_record = TopUpRecord.objects.filter(code=code_key).update(serial_number=trade_no)
-            # 回调成功    登录用户减少  借的金额
-            # 对应新标    减少 借的金额   余额到0时新标完成   删除新标    改状态
-            return redirect("http://127.0.0.1:8080/user_info")
-        except:
-            error = traceback.format_exc()
-            logger.error('GoMoney——error:{}'.format(error))
-            return Response({"code": 500, "msg": False})
 
 
 class GetUserLoan(APIView):
@@ -606,21 +612,17 @@ class RefundMoney(APIView):
             bankuser = BankUser.objects.get(user_id=user_id)
             if data.is_valid():
                 data = data.cleaned_data
-                a = data.get('bank_card_id')
-                b = data.get('bank_password')
-                print(a, b)
-                # bankuser_verify = BankUser.objects.filter(Q(bank_card_id=data.get('bank_card_id') | Q(password=data.get('bank_password')))).first()
-                # bankuser_verify = BankUser.objects.filter_by(bank_card_id=data.get('bank_card_id'),password=data.get('bank_password')))).first()
-                if bankuser_verify:
-                    return Response({'msg': '不匹配', 'code': 500})
-                loan_money = LoanRecord.objects.get(user_id=bankuser.user_id)
-                money = data.get('refund_money')
-                # 余额
-                balance = int(loan_money) - int(money)
-                bankuser_verify.update(money=balance)
-
-                return Response({'code': 200, 'msg': 'OK'})
-
+                bank_card_id = data.get('bank_card_id')
+                bank_password = data.get('bank_password')
+                bank_user = BankUser.objects.get(user_id=user_id)
+                if bank_user.bank_card_id == bank_card_id:
+                    if bank_user.password == bank_password:
+                        loan_money = LoanRecord.objects.get(user_id=bankuser.user_id)
+                        return Response({'code': 200, 'msg': 'OK'})
+                    else:
+                        return Response({'msg': '银行卡密码错误', 'code': 406})
+                else:
+                    return Response({'msg': '账号与用户不匹配', 'code': 406})
             err = data.errors.as_json()
             return Response({'code': 407, 'msg': err})
         except:

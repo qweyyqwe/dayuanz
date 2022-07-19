@@ -31,8 +31,6 @@ urlpatterns = [
     path('get_sign_all/', views.ShowSignAll.as_view()),
     # 新标  投资
     path('invest_money/', views.InvestMoney.as_view()),
-    # 投标回调
-    path('callback/', views.InvestCallBack.as_view()),
     # 获取还款列表
     path('get_user_loan/', views.GetUserLoan.as_view()),
     # 还款

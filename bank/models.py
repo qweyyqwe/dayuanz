@@ -26,18 +26,29 @@ class BankUser(models.Model):
     class Meta:
         db_table = 'bank_bankuser'
 
+    def reduce_loan_money(self, number):
+        """
+        减少对应的投资金额
+        :param number:
+        :return:
+        """
+        self.money -= number
+        self.save()
 
-# class InvestRecord(models.Model):
-#     """
-#     投资表
-#     """
-#     user = models.ForeignKey(BankUser, on_delete=models.CASCADE, verbose_name='关联开户人员')
-#     loan = models.ForeignKey('LoanRecord', on_delete=models.CASCADE, verbose_name='贷款理财')
-#     create_time = models.DateTimeField(default=timezone.now, verbose_name='开户时间')
-#     earnings_money = models.IntegerField(verbose_name="预收益", null=True, blank=True)
-#
-#     class Meta:
-#         db_table = 'bank_investrecord'
+
+class InvestRecord(models.Model):
+    """
+    投资表
+    """
+    user = models.ForeignKey(BankUser, on_delete=models.CASCADE, verbose_name='关联开户人员')
+    invest_money = models.IntegerField(verbose_name="投资金额", null=True, blank=True)
+    loan = models.ForeignKey('LoanRecord', on_delete=models.CASCADE, verbose_name='理财')
+    create_time = models.DateTimeField(default=timezone.now, verbose_name='投资时间')
+    earnings_money = models.IntegerField(verbose_name="预收益", null=True, blank=True)
+    status = models.IntegerField(default=0, verbose_name='0抢购1投资成功2已放款')
+
+    class Meta:
+        db_table = 'bank_investrecord'
 
 
 class LoanRecord(models.Model):
@@ -46,6 +57,7 @@ class LoanRecord(models.Model):
     """
     user = models.ForeignKey(BankUser, on_delete=models.CASCADE, verbose_name='关联开户人员')
     loan_money = models.IntegerField(verbose_name="贷款金额")
+    have_money = models.IntegerField(verbose_name="已投资金额", default=0)
     # loan_money = models.DecimalField(max_digits=7, decimal_places=2, verbose_name="贷款金额")
     loan_time = models.DateTimeField(default=timezone.now, verbose_name='贷款时间')
     late_time = models.DateTimeField(verbose_name='最晚还款贷款时间', null=True, blank=True)
