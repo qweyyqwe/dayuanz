@@ -22,6 +22,7 @@ from integral_shopping import integral_shopping_url
 from sign_in import sign_in_url
 from site_letter import site_letter_url
 from bank import bank_url
+from survey import survey_url
 
 
 from rest_framework import permissions
@@ -50,7 +51,7 @@ schema_view = get_schema_view(
 
 
 urlpatterns = [
-    path(r'^doc(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),  # <-- 这里
+    # path(r'^doc(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),  # <-- 这里
     path('swagger/', schema_view.with_ui(cache_timeout=0), name='schema-swagger-ui'),  # <-- 这里
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),  # <-- 这里
     path('admin/', admin.site.urls),
@@ -61,4 +62,6 @@ urlpatterns = [
     path('sign_in/', include(sign_in_url)),
     path('site_letter/', include(site_letter_url)),
     path('bank/', include(bank_url)),
+    path('survey/', include(survey_url)),
+
 ]

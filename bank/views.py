@@ -1,11 +1,15 @@
 # Create your views here.
 
-
+import demjson
+import xlrd
 import logging
 import random
 import time
 import traceback
 import json
+import pandas as pd
+import os
+
 
 from django.db import transaction
 from django.db.models import Q
@@ -19,6 +23,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
+from xlrd import xldate_as_datetime
+from rest_framework import permissions, generics
+from rest_framework.generics import ListAPIView
 
 from MQPika.teacher_rabbit_product import PublishClass
 from utils.alp.alipay import get_ali_object, pay
@@ -31,6 +38,8 @@ from utils.redis_cache import mredis
 from .models import BankUser, LoanRecord, TopUpRecord, InvestRecord
 from .serializers import BankUserSer, LoanRecordSer
 from MQPika.teacher_rabbit_product import PublishClass
+from utils.alp.code import uniqueness_code
+from ES.es import ES
 
 logger = logging.getLogger('log')
 
@@ -142,7 +151,6 @@ class LoanMoney(APIView):
             data = mredis.str_get("sms_%s" % phone)
             # 获取的data b字节 转str
             redis_code = str(data, "utf-8")
-            print(redis_code, code)
             if redis_code:
                 # 取redis中的验证码
                 redis_code = data.decode('utf-8')
@@ -509,6 +517,9 @@ class OrderCommitView(APIView):
 class InvestMoney(APIView):
     """
     新标  投资
+    1） 状态师傅满标
+    2） 未满标  校验 银行卡，密码，新标，价格
+    3) 投资金额成立
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -523,6 +534,11 @@ class InvestMoney(APIView):
             password = request.data.get('password')
             loan = LoanRecord.objects.get(id=invest_id)
             bank_user = BankUser.objects.get(user_id=user_id)
+            # 投资金额  和  已投金额 相等  状态为满标
+            if loan.loan_money == loan.have_money:
+                # loan.loan_status = 2
+                # loan.save()
+                return Response({'msg': '满标， 无法进行投资', 'code': 200})
             if bank_user.bank_card_id == bank_card_id:
                 if bank_user.password == password:
                     # 新标投资总额度
@@ -543,12 +559,6 @@ class InvestMoney(APIView):
                             loan.have_money += int(loan_money)
                             if loan.loan_money < loan.have_money:
                                 return Response({'msg': '数据不合法', 'code': 200})
-                            # 投资金额  和  已投金额 相等  状态为满标
-                            if loan.loan_money == loan.have_money:
-                                loan.loan_status = 2
-                                loan.save()
-                                return Response({'msg': '满标', 'code': 200})
-
                             invest_record = InvestRecord.objects.create(user_id=user_id, loan_id=invest_id,
                                                                         invest_money=loan_money, status=0)
                             # invest_record.save()
@@ -558,8 +568,12 @@ class InvestMoney(APIView):
                                 'invest_id': invest_record.id
                             }
                             producer.this_publisher(json.dumps(data))
-                            bank_user.save()
                             loan.save()
+                            if loan.loan_money == loan.have_money:
+                                loan.loan_status = 2
+
+                                loan.save()
+                            bank_user.save()
                             return Response({'msg': '投资成功', 'code': 200})
                         else:
                             return Response({'msg': '余额不足，无法投标', 'code': 500})
@@ -612,8 +626,14 @@ class RefundMoney(APIView):
             bankuser = BankUser.objects.get(user_id=user_id)
             if data.is_valid():
                 data = data.cleaned_data
+                loan_record_id = data.get('loan_record_id')
+                refund_money = request.data.get('refund_money')
+                # 银行卡号      获取需还款金额
                 bank_card_id = data.get('bank_card_id')
                 bank_password = data.get('bank_password')
+
+                loan = LoanRecord.objects.get(id=bank_card_id)
+                loan_money = loan.loan_money    # 应还款金额
                 bank_user = BankUser.objects.get(user_id=user_id)
                 if bank_user.bank_card_id == bank_card_id:
                     if bank_user.password == bank_password:
@@ -631,6 +651,27 @@ class RefundMoney(APIView):
             return Response({'code': 500, 'msg': error})
 
 
+# class RefundMoney(APIView):
+#     """
+#     用户还款
+#     提前还款    到期系统扣款
+#     """
+#     permission_classes = [permissions.IsAuthenticated]
+#
+#     def post(self, request):
+#         user = request.user
+#         bankuser = BankUser.objects.get(user_id=user.id)
+#         loan_id = request.data.get('loan_id')
+#         refund_money = request.data.get('refund_money')
+#         # 获取需还款金额
+#         loan = LoanRecord.objects.get(id=loan_id)
+#         loan_money = loan.loan_money    # 应还款金额
+#         if int(refund_money) > int(loan_money):
+#             return Response({'code': 500, 'msg': '当前还款金额超过了应还金额'})
+#         elif int(refund_money) <= 0:
+#             return Response({'code': 500, 'msg': '数据不合法'})
+
+
 class SendRefundCode(APIView):
     """
     还款验证手机号
@@ -639,6 +680,260 @@ class SendRefundCode(APIView):
 
     def get(self, request):
         phone = request.query_params.get('phone')
-        print(phone)
         mobile = send_son(phone)
         return Response({'code': 200, 'msg': '成功'})
+
+
+class AddUploadingIdentityCard(APIView):
+    """
+    上传实名信息
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        user_id = user.id
+        # 获取图片url
+        pass
+
+
+class CheckUserIdentityCard(APIView):
+    """
+    审核身份信息
+    """
+    permission_classes = [permissions.IsAuthenticated, IsCheckUser]
+
+    def post(self, request):
+
+        type = request.data.get('type')
+        if type == 1:
+            # TODO 通过
+            pass
+        elif type == 2:
+            # TODO 不通过
+            pass
+        else:
+            return Response({'msg': '参数不合法', 'code': 406})
+
+
+def upload_device(request):
+    """文件上传"""
+    nowTime = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+    if request.method == 'POST':
+        f = request.FILES.get('file')
+        excel_type = f.name.split('.')[-1]
+        if excel_type in ['xls']:
+            # 开始解析上传的excel表格
+            wb = xlrd.open_workbook(filename=None, file_contents=f.read())
+            table = wb.sheets()[0]
+            rows = table.nrows  # 总行数
+            for i in range(1, rows):
+                row_values = table.row_values(i)
+                if (row_values[0] != "" and row_values[1] != "" and row_values[2] != "" and row_values[
+                    3] != "" and row_values[4] != "" and row_values[5] != "" and row_values[7] != "" and
+                        row_values[8] != ""):
+                    pass
+                else:
+                    return JsonResponse("第" + str(i) + "行除手机号外其余项均不能为空", safe=False,
+                                        json_dumps_params={'ensure_ascii': False})
+            with transaction.atomic():  # 控制数据库事务交易
+                for j in range(1, rows):
+                    row_values = table.row_values(j)
+                    device_asset_num = row_values[5]
+                    device_phone_num = row_values[6]
+                    if isinstance(device_asset_num, str):
+                        device_asset_num = device_asset_num
+                    elif isinstance(device_asset_num, float) and device_asset_num.is_integer():
+                        device_asset_num = int(float(device_asset_num))
+                    else:
+                        pass
+                    if device_phone_num == "" or device_phone_num == "无":
+                        device_phone_numb = "无"
+                    elif isinstance(device_phone_num, str):
+                        device_phone_num = device_phone_num
+                    elif isinstance(device_phone_num, float):
+                        device_phone_num = int(float(device_phone_num))
+                    else:
+                        pass
+                    # device_by_asset_num = DeviceInfo.objects.filter(
+                    #     device_asset_num=device_asset_num)
+                    # if device_by_asset_num.exists():
+                    #     #使用JsonResponse都需要添加 json_dumps_params={'ensure_ascii':False} 否则显示不是UTF-8格式.
+                    #     # 如果是列表格式，使用JsonResponse，需要添加safe=False
+                    #     return JsonResponse("资产编号%s已存在" % (device_asset_num), safe=False,
+                    #                         json_dumps_params={'ensure_ascii': False})
+                    # else:
+                    #     DeviceInfo.objects.create(center_name=row_values[0],
+                    #                                  device_name=row_values[1],
+                    #                                  device_system=row_values[2].lower(),
+                    #                                  device_factory=row_values[3],
+                    #                                  device_system_version=row_values[4],
+                    #                                  device_asset_num=device_asset_num,
+                    #                                  device_phone_num=device_phone_num,
+                    #                                  device_recipient=row_values[7],
+                    #                                  device_user=row_values[8],
+                    #                                  creator=row_values[7],
+                    #                                  create_date=nowTime,
+                    #                                  update_data=nowTime
+                    #                                  )
+                    #     CirculationInfo.objects.create(
+                    #         device_asset_num=DeviceInfo.objects.filter(device_asset_num=device_asset_num)[0],
+                    #         device_user=row_values[8],
+                    #         creator=row_values[7],
+                    #         created_date=nowTime,
+                    #         update_data=nowTime
+                    #     )
+        else:
+            return JsonResponse("文件类型错误", safe=False, json_dumps_params={'ensure_ascii': False})
+    return redirect('/devices_list')
+
+
+class UpLoad(APIView):
+    def post(self, request):
+        file = request.FILES.get('file')
+        df = pd.read_excel(file, dtype='str')
+        df_list = df.values
+        for i in df_list:
+            if i is None:
+                continue
+            user_id = i[0]
+            loab_money = i[1]
+            content = i[2]
+            expect = i[3]
+            # excel = LoanRecord.objects.create(user_id=user_id, loab_money=loab_money, content=content, expect=expect)
+            # excel.save()
+        return Response({'code': 200, 'msg': 'ok'})
+
+
+'''
+class File(APIView):
+    """
+
+    """
+    def post(self, request):
+        # 根name取 file 的值
+        file = request.FILES.get('file')
+        # 创建upload文件夹
+        if not os.path.exists(settings.UPLOAD_ROOT):
+            os.makedirs(settings.UPLOAD_ROOT)
+        try:
+            if file is None:
+                return HttpResponse('请选择要上传的文件')
+            # 循环二进制写入
+            with open(settings.UPLOAD_ROOT + "/" + file.name, 'wb') as f:
+                for i in file.readlines():
+                    f.write(i)
+        except Exception as e:
+            return HttpResponse(e)
+        return HttpResponse('上传成功')
+
+
+# 将excel数据写入mysql
+def wrdb(filename):
+    """
+    user, loab_money, content, expect
+    :param filename:
+    :return:
+    """
+    # 打开上传 excel 表格
+    readboot = xlrd.open_workbook(settings.UPLOAD_ROOT + "/" + filename)
+    sheet = readboot.sheet_by_index(0)
+    #获取excel的行和列
+    nrows = sheet.nrows
+    ncols = sheet.ncols
+    sql = "insert into bank_loanrecord (user, loab_money, content, expect) VALUES"
+    for i in range(1,nrows):
+        row = sheet.row_values(i)
+        user = row[0]
+        loab_money = row[2]
+        content = row[4]
+        expect = row[6]
+        values = "('%s','%s','%s','%s')"%(user, loab_money, content, expect)
+        sql = sql + values +","
+        # 为了提高运行效率，一次性把数据 insert 进数据库  　
+        sql = sql[:-1]
+        # 写入数据库
+        # DataConnection 是自定义的公共模块，用的是第三方库，用来操作数据库。没有用 ORM ，后续有 group by 等复杂 sql 不好操作。
+        DataConnection.MysqlConnection().insert('work',sql)
+
+
+@csrf_exempt
+def upload(request):
+    # 根name取 file 的值
+    file = request.FILES.get('file')
+    # 创建upload文件夹
+    if not os.path.exists(settings.UPLOAD_ROOT):
+        os.makedirs(settings.UPLOAD_ROOT)
+    try:
+        if file is None:
+            return HttpResponse('请选择要上传的文件')
+        # 循环二进制写入
+        with open(settings.UPLOAD_ROOT + "/" + file.name, 'wb') as f:
+            for i in file.readlines():
+                f.write(i)
+
+        # 写入 mysql
+        wrdb(file.name)
+    except Exception as e:
+        return HttpResponse(e)
+
+    return HttpResponse('导入成功')
+'''
+
+
+"""
+1、读取Excel数据，将内容保存至数据库
+ a、前端上传文件到后端
+ b、后端读取Excel文件
+ c、写入数据库
+2、链表和列表的区别
+3、supervisor整理教程
+4、LDAP认证
+5、dns解析
+"""
+
+"""
+1、完善金融项目代码
+
+2、金融项目部署  docker中实现  uwsgi + nginx + django + supervisor
+
+3、整理冒泡排序、插入排序、选择排序
+
+4、django搭建es搜索服务器，以及对应文档
+
+5、使用django自带的定时任务
+
+6、配置主从服务器，并应用到金融项目中
+"""
+
+
+class GetEsInfo(generics.GenericAPIView):
+    """
+    获取数据
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = LoanRecordSer
+
+    def get(self, request):
+        search = request.query_params.get('q')
+        es = ES(index_name='tb_course')
+        result = es.search(search, count=5)
+        result = demjson.encode(result)
+        result = demjson.decode(result)
+        return Response({'msg': result, 'code': 200})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

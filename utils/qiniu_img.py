@@ -8,7 +8,7 @@ from qiniu import Auth
 AK = 't3cMfIhCo01zE0bBrsZZN7t6qB4neh8HW_QnOamy'
 SK = '97pMyQwZ6A3M_gZa2TKvf_ekuvyli9EPudfxRYKx'
 # 要上传的空间
-bucket_name = 'shixun-yang-two'
+bucket_name = 'shixun-yang-one'
 
 
 def get_qiniu_token():

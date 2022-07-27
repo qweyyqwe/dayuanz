@@ -36,6 +36,9 @@ urlpatterns = [
     # 还款
     path('refund_money/', views.RefundMoney.as_view()),
     path('send_refund_code/', views.SendRefundCode.as_view()),
+    path('file/', views.UpLoad.as_view()),
+    # ES搜索
+    path('get_es/', views.GetEsInfo.as_view()),
 
 
 

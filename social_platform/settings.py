@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'sign_in',  # 积分
     'site_letter',  # 站内信
     'bank',  # 银行借贷
+    'survey',   # 问卷调查
 
 ]
 MIDDLEWARE = [
@@ -230,15 +231,15 @@ JWT_AUTH = {
     'JWT_DECODE_HANDLER': 'rest_framework_jwt.utils.jwt_decode_handler',
 }
 
-# 配置redis
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
-        },
-    },
-}
+# # 配置redis
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#         'CONFIG': {
+#             "hosts": [('127.0.0.1', 6379)],
+#         },
+#     },
+# }
 
 # CACHES = {
 #
@@ -250,6 +251,20 @@ CHANNEL_LAYERS = {
 #         }
 #     }
 # }
+
+
+# 文件上传配置
+UPLOAD_ROOT = os.path.join(BASE_DIR, 'upload')
+
+
+# ES引擎
+HAYSTACK_CONNECTIONS = {
+    'default': {
+        'ENGINE': 'haystack.backends.elasticsearch_backend.ElasticsearchSearchEngine',
+        'URL': 'http://47.111.69.97:9200/',         # Elasticsearch服务器ip地址，端口号固定为9200
+        'INDEX_NAME': 'dayuanzhong_django',                        # Elasticsearch建立的反向索引库的名称
+    },
+}
 
 
 # Static files (CSS, JavaScript, Images)
